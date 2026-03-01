@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>墓石工事 顧客管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: #f5f5f5; font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; color: #333; }
+    #app { max-width: 600px; margin: 0 auto; min-height: 100vh; background: #fff; position: relative; }
+
+    .header {
+      background: #1a6bbf; color: #fff; padding: 16px 20px; font-size: 20px; font-weight: bold;
+      display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100;
+    }
+    .header .back-btn { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; line-height: 1; padding: 0 4px; }
+
+    #loading {
+      position: fixed; inset: 0; background: rgba(255,255,255,0.9);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 999; font-size: 20px; gap: 20px;
+    }
+    .spinner { width: 50px; height: 50px; border: 5px solid #ddd; border-top-color: #1a6bbf; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #toast {
+      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #333; color: #fff; padding: 14px 28px; border-radius: 30px; font-size: 18px;
+      opacity: 0; transition: all 0.3s; z-index: 500; white-space: nowrap; pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.error { background: #c0392b; }
+    #toast.success { background: #27ae60; }
+
+    /* GAS URL未設定の警告 */
+    #setup-banner {
+      background: #fff3cd; border-bottom: 2px solid #ffc107;
+      padding: 14px 20px; font-size: 16px; color: #856404; display: none;
+    }
+
+    .tabs { display: flex; background: #eee; border-bottom: 2px solid #ddd; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn { flex: 0 0 auto; padding: 14px 20px; border: none; background: none; font-size: 17px; color: #666; cursor: pointer; white-space: nowrap; position: relative; transition: color 0.2s; }
+    .tab-btn.active { color: #1a6bbf; font-weight: bold; }
+    .tab-btn.active::after { content: ""; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background: #1a6bbf; }
+
+    .customer-list { padding: 12px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 100px; }
+    .customer-card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 16px 18px; cursor: pointer; transition: box-shadow 0.2s; display: flex; align-items: center; gap: 14px; }
+    .customer-card:active { box-shadow: 0 0 0 3px #1a6bbf44; }
+    .card-info { flex: 1; }
+    .card-name { font-size: 20px; font-weight: bold; color: #222; }
+    .card-field { font-size: 16px; color: #666; margin-top: 4px; }
+    .card-arrow { color: #bbb; font-size: 22px; }
+
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 15px; font-weight: bold; white-space: nowrap; }
+    .badge-完了 { background: #d5f5e3; color: #1e8449; }
+    .badge-進行中 { background: #d6eaf8; color: #1a5276; }
+    .badge-見積 { background: #fef9e7; color: #7d6608; border: 1px solid #f9e79f; }
+
+    .empty-msg { text-align: center; padding: 60px 20px; color: #999; font-size: 18px; }
+
+    .fab { position: fixed; bottom: 28px; right: calc(50% - 290px); background: #1a6bbf; color: #fff; border: none; border-radius: 30px; padding: 18px 28px; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 8px; z-index: 200; }
+    @media (max-width: 640px) { .fab { right: 20px; } }
+    .fab:active { opacity: 0.85; }
+
+    .form-page { padding: 24px 20px 100px; }
+    .form-label { font-size: 18px; font-weight: bold; color: #444; margin-bottom: 10px; display: block; }
+    .form-hint { font-size: 15px; color: #888; margin-bottom: 10px; }
+    .form-input { width: 100%; padding: 16px; font-size: 20px; border: 2px solid #ccc; border-radius: 10px; outline: none; transition: border-color 0.2s; background: #fafafa; }
+    .form-input:focus { border-color: #1a6bbf; background: #fff; }
+    .form-textarea { width: 100%; padding: 16px; font-size: 18px; border: 2px solid #ccc; border-radius: 10px; outline: none; min-height: 120px; resize: vertical; font-family: inherit; background: #fafafa; }
+    .form-textarea:focus { border-color: #1a6bbf; background: #fff; }
+
+    .status-btns { display: flex; flex-direction: column; gap: 14px; }
+    .status-btn { width: 100%; padding: 22px 16px; font-size: 22px; font-weight: bold; border: 3px solid #ddd; border-radius: 12px; background: #fff; cursor: pointer; transition: all 0.15s; text-align: center; }
+    .status-btn.selected { border-color: #1a6bbf; background: #eaf3ff; }
+    .status-btn[data-val="完了"].selected { border-color: #1e8449; background: #d5f5e3; }
+    .status-btn[data-val="見積"].selected { border-color: #7d6608; background: #fef9e7; }
+
+    .step-progress { display: flex; gap: 6px; margin-bottom: 24px; }
+    .step-dot { width: 10px; height: 10px; border-radius: 50%; background: #ddd; }
+    .step-dot.done { background: #1a6bbf; }
+    .step-title { font-size: 24px; font-weight: bold; color: #222; margin-bottom: 8px; }
+
+    .nav-footer { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; background: #fff; border-top: 1px solid #eee; padding: 14px 20px; display: flex; gap: 12px; z-index: 200; }
+    .btn-primary { flex: 1; padding: 18px; font-size: 20px; font-weight: bold; background: #1a6bbf; color: #fff; border: none; border-radius: 10px; cursor: pointer; transition: opacity 0.15s; }
+    .btn-primary:active { opacity: 0.85; }
+    .btn-secondary { padding: 18px 24px; font-size: 18px; background: #f0f0f0; color: #555; border: none; border-radius: 10px; cursor: pointer; }
+
+    .detail-page { padding: 20px 20px 100px; }
+    .detail-section { margin-bottom: 24px; }
+    .detail-section-title { font-size: 15px; color: #888; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 14px; }
+    .detail-row { display: flex; padding: 12px 0; border-bottom: 1px solid #f0f0f0; align-items: flex-start; gap: 12px; }
+    .detail-label { font-size: 16px; color: #888; width: 110px; flex-shrink: 0; padding-top: 2px; }
+    .detail-value { font-size: 20px; color: #222; flex: 1; word-break: break-all; }
+    .detail-value.big { font-size: 24px; font-weight: bold; }
+    .detail-value.profit { color: #1e8449; }
+    .detail-value.loss { color: #c0392b; }
+
+    .edit-page { padding: 20px 20px 100px; }
+    .edit-field-wrap { margin-bottom: 20px; }
+
+    .hidden { display: none !important; }
+    .mt-8 { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>読み込み中...</div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- ========== 画面1：ホーム ========== -->
+  <div id="screen-home">
+    <div class="header">⛩ 墓石工事 顧客管理</div>
+    <div id="setup-banner">
+      ⚠️ GAS APIのURLが未設定です。このファイルの先頭にある <strong>GAS_API_URL</strong> を設定してください。
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="全件">全件</button>
+      <button class="tab-btn" data-tab="進行中">進行中</button>
+      <button class="tab-btn" data-tab="完了">完了</button>
+      <button class="tab-btn" data-tab="見積">見積</button>
+    </div>
+    <div class="customer-list" id="customer-list"></div>
+    <button class="fab" id="btn-add"><span style="font-size:26px;">＋</span> 新規追加</button>
+  </div>
+
+  <!-- ========== 画面2：新規入力フォーム ========== -->
+  <div id="screen-form" class="hidden">
+    <div class="header">
+      <button class="back-btn" id="form-back-btn">←</button>
+      <span id="form-header-title">新規登録</span>
+    </div>
+    <div class="form-page" id="form-step-area"></div>
+    <div class="nav-footer">
+      <button class="btn-secondary hidden" id="form-prev-btn">戻る</button>
+      <button class="btn-primary" id="form-next-btn">次へ</button>
+    </div>
+  </div>
+
+  <!-- ========== 画面3：詳細表示 ========== -->
+  <div id="screen-detail" class="hidden">
+    <div class="header">
+      <button class="back-btn" id="detail-back-btn">←</button>
+      <span>顧客詳細</span>
+    </div>
+    <div class="detail-page" id="detail-content"></div>
+    <div class="nav-footer">
+      <button class="btn-primary" id="detail-edit-btn">✏️ 編集する</button>
+    </div>
+  </div>
+
+  <!-- ========== 画面4：編集フォーム ========== -->
+  <div id="screen-edit" class="hidden">
+    <div class="header">
+      <button class="back-btn" id="edit-back-btn">←</button>
+      <span>編集</span>
+    </div>
+    <div class="edit-page" id="edit-content"></div>
+    <div class="nav-footer">
+      <button class="btn-secondary" id="edit-cancel-btn">キャンセル</button>
+      <button class="btn-primary" id="edit-save-btn">💾 保存する</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// ★★★ここにGASのAPIのURLを入力してください★★★
+// GASをデプロイした後に発行されるURLをコピーして貼り付けてください
+// 例：https://script.google.com/macros/s/XXXX/exec
+// ============================================================
+var GAS_API_URL = "";
+
+// ============================================================
+// API通信
+// ============================================================
+function apiGet(action) {
+  return fetch(GAS_API_URL + "?action=" + action)
+    .then(function(r) { return r.json(); });
+}
+
+function apiPost(data) {
+  return fetch(GAS_API_URL, {
+    method: "POST",
+    body: JSON.stringify(data)
+  }).then(function(r) { return r.json(); });
+}
+
+// ============================================================
+// 状態管理
+// ============================================================
+var state = {
+  customers: [],
+  currentTab: "全件",
+  selectedCustomer: null,
+  formData: {},
+  formStep: 0
+};
+
+var STEPS = [
+  { key: "status", title: "ステータスを選んでください", type: "status" },
+  { key: "ownerName", title: "施主名", type: "text", placeholder: "例：田中 一郎" },
+  { key: "fieldName", title: "現場名", type: "text", placeholder: "例：〇〇霊園 △区画" },
+  { key: "graveSize", title: "墓のサイズ", type: "text", placeholder: "例：8寸角、洋型180cm" },
+  { key: "phone", title: "電話番号", type: "text", placeholder: "例：090-1234-5678", inputmode: "tel" },
+  { key: "postalCode", title: "郵便番号", type: "text", placeholder: "例：123-4567", inputmode: "numeric" },
+  { key: "address", title: "住所", type: "text", placeholder: "例：東京都〇〇市△△1-2-3" },
+  { key: "contractAmount", title: "契約金額（円）", type: "number", placeholder: "例：1500000", inputmode: "numeric" },
+  { key: "cost", title: "原価（円）", type: "number", placeholder: "例：900000", inputmode: "numeric" },
+  { key: "startDate", title: "工期 開始日", type: "date" },
+  { key: "endDate", title: "工期 終了日", type: "date" },
+  { key: "notes", title: "備考", type: "textarea", placeholder: "自由記入（なければ空白でOK）", optional: true }
+];
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+function $(id) { return document.getElementById(id); }
+function showScreen(name) {
+  ["home","form","detail","edit"].forEach(function(s) {
+    $("screen-" + s).classList.toggle("hidden", s !== name);
+  });
+  window.scrollTo(0, 0);
+}
+function showLoading(msg) {
+  $("loading").querySelector("div:last-child").textContent = msg || "処理中...";
+  $("loading").style.display = "flex";
+}
+function hideLoading() { $("loading").style.display = "none"; }
+
+var toastTimer = null;
+function showToast(msg, type) {
+  var el = $("toast");
+  el.textContent = msg;
+  el.className = "show " + (type || "");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { el.className = ""; }, 3000);
+}
+function esc(str) {
+  return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function val(id) { var el = $(id); return el ? el.value.trim() : ""; }
+function formatMoney(n) { return Number(n).toLocaleString("ja-JP"); }
+
+// ============================================================
+// ホーム画面
+// ============================================================
+function renderHome() {
+  var tab = state.currentTab;
+  var filtered = state.customers.filter(function(c) {
+    return tab === "全件" || c.status === tab;
+  });
+  var list = $("customer-list");
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-msg">顧客データがありません</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(function(c) {
+    return '<div class="customer-card" data-row="' + c.rowNum + '">'
+      + '<div class="card-info">'
+      + '<div class="card-name">' + esc(c.ownerName || "（氏名未入力）") + '</div>'
+      + '<div class="card-field">' + esc(c.fieldName || "（現場名未入力）") + '</div>'
+      + '<div class="mt-8"><span class="badge badge-' + esc(c.status) + '">' + esc(c.status) + '</span></div>'
+      + '</div><div class="card-arrow">›</div></div>';
+  }).join("");
+  list.querySelectorAll(".customer-card").forEach(function(card) {
+    card.addEventListener("click", function() {
+      var rowNum = parseInt(this.dataset.row);
+      var customer = state.customers.find(function(c) { return c.rowNum === rowNum; });
+      if (customer) openDetail(customer);
+    });
+  });
+}
+
+function loadCustomers() {
+  showLoading("データを読み込み中...");
+  apiGet("getCustomers")
+    .then(function(data) {
+      hideLoading();
+      if (data && data.error) { showToast("エラー: " + data.error, "error"); return; }
+      state.customers = data || [];
+      renderHome();
+    })
+    .catch(function() { hideLoading(); showToast("読み込みに失敗しました", "error"); });
+}
+
+document.querySelectorAll(".tab-btn").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+    this.classList.add("active");
+    state.currentTab = this.dataset.tab;
+    renderHome();
+  });
+});
+
+// ============================================================
+// 新規登録フォーム
+// ============================================================
+$("btn-add").addEventListener("click", function() {
+  state.formData = {};
+  state.formStep = 0;
+  renderStep();
+  showScreen("form");
+});
+$("form-back-btn").addEventListener("click", function() { showScreen("home"); });
+
+function renderStep() {
+  var step = STEPS[state.formStep];
+  var isLast = state.formStep === STEPS.length - 1;
+  var dots = STEPS.map(function(_, i) {
+    return '<div class="step-dot' + (i <= state.formStep ? " done" : "") + '"></div>';
+  }).join("");
+
+  var inputHtml = "";
+  if (step.type === "status") {
+    inputHtml = '<div class="status-btns">'
+      + ["進行中","完了","見積"].map(function(s) {
+        return '<button class="status-btn' + (state.formData.status === s ? " selected" : "") + '" data-val="' + s + '">' + s + '</button>';
+      }).join("") + '</div>';
+  } else if (step.type === "textarea") {
+    inputHtml = '<textarea class="form-textarea" id="step-input" placeholder="' + (step.placeholder||"") + '">' + esc(state.formData[step.key]||"") + '</textarea>';
+  } else {
+    inputHtml = '<input class="form-input" id="step-input" type="' + step.type + '" inputmode="' + (step.inputmode||"text") + '" placeholder="' + (step.placeholder||"") + '" value="' + esc(state.formData[step.key]||"") + '">';
+  }
+
+  $("form-step-area").innerHTML =
+    '<div class="step-progress">' + dots + '</div>'
+    + '<div class="step-title">' + esc(step.title) + '</div>'
+    + (step.optional ? '<div class="form-hint">（任意：空白でも登録できます）</div>' : "")
+    + '<div class="mt-16">' + inputHtml + '</div>';
+
+  if (step.type === "status") {
+    document.querySelectorAll(".status-btn").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        document.querySelectorAll(".status-btn").forEach(function(b) { b.classList.remove("selected"); });
+        this.classList.add("selected");
+        state.formData.status = this.dataset.val;
+      });
+    });
+  }
+
+  $("form-prev-btn").classList.toggle("hidden", state.formStep === 0);
+  $("form-next-btn").textContent = isLast ? "✅ 登録する" : "次へ →";
+  if (step.type !== "status") {
+    var input = $("step-input");
+    if (input) setTimeout(function() { input.focus(); }, 150);
+  }
+}
+
+$("form-next-btn").addEventListener("click", function() { advanceStep(1); });
+$("form-prev-btn").addEventListener("click", function() { advanceStep(-1); });
+
+function advanceStep(dir) {
+  var step = STEPS[state.formStep];
+  if (step.type !== "status") {
+    var input = $("step-input");
+    if (input) state.formData[step.key] = input.value.trim();
+  }
+  if (dir > 0 && !step.optional && step.type !== "status" && !state.formData[step.key]) {
+    showToast("入力してください", "error");
+    $("step-input").style.borderColor = "#c0392b";
+    return;
+  }
+  if (dir > 0 && step.type === "status" && !state.formData.status) {
+    showToast("ステータスを選んでください", "error");
+    return;
+  }
+  var next = state.formStep + dir;
+  if (next >= STEPS.length) { submitForm(); return; }
+  state.formStep = Math.max(0, next);
+  renderStep();
+}
+
+function submitForm() {
+  showLoading("登録中...");
+  apiPost(Object.assign({ action: "addCustomer" }, state.formData))
+    .then(function(result) {
+      hideLoading();
+      if (result.success) {
+        showToast("✅ 登録しました！", "success");
+        showScreen("home");
+        loadCustomers();
+      } else {
+        showToast("エラー: " + result.error, "error");
+      }
+    })
+    .catch(function() { hideLoading(); showToast("登録に失敗しました", "error"); });
+}
+
+// ============================================================
+// 詳細表示
+// ============================================================
+function openDetail(customer) {
+  state.selectedCustomer = customer;
+  renderDetail(customer);
+  showScreen("detail");
+}
+
+function renderDetail(c) {
+  var profitClass = c.profit >= 0 ? "profit" : "loss";
+  var profitSign = c.profit >= 0 ? "+" : "";
+  $("detail-content").innerHTML =
+    '<div style="margin-bottom:20px;"><span class="badge badge-' + esc(c.status) + '" style="font-size:18px;">' + esc(c.status) + '</span></div>'
+    + '<div class="detail-section"><div class="detail-section-title">基本情報</div>'
+    + dRow("施主名", c.ownerName, "big") + dRow("現場名", c.fieldName) + dRow("墓のサイズ", c.graveSize) + '</div>'
+    + '<div class="detail-section"><div class="detail-section-title">連絡先</div>'
+    + dRow("電話番号", c.phone ? '<a href="tel:' + esc(c.phone) + '" style="color:#1a6bbf;">' + esc(c.phone) + '</a>' : "未入力", "", true)
+    + dRow("郵便番号", c.postalCode ? "〒" + esc(c.postalCode) : "未入力")
+    + dRow("住所", c.address) + '</div>'
+    + '<div class="detail-section"><div class="detail-section-title">金額</div>'
+    + dRow("契約金額", c.contractAmount ? formatMoney(c.contractAmount) + " 円" : "未入力")
+    + dRow("原価", c.cost ? formatMoney(c.cost) + " 円" : "未入力")
+    + '<div class="detail-row"><span class="detail-label">純利益</span><span class="detail-value big ' + profitClass + '">' + profitSign + formatMoney(c.profit) + ' 円</span></div>'
+    + '<div class="detail-row"><span class="detail-label">利益率</span><span class="detail-value big ' + profitClass + '">' + c.profitRate + ' %</span></div></div>'
+    + '<div class="detail-section"><div class="detail-section-title">工期</div>'
+    + dRow("開始日", c.startDate || "未入力") + dRow("終了日", c.endDate || "未入力") + '</div>'
+    + '<div class="detail-section"><div class="detail-section-title">備考</div>'
+    + '<div style="font-size:18px;line-height:1.7;white-space:pre-wrap;padding:4px 0;">' + esc(c.notes || "（なし）") + '</div></div>';
+}
+
+function dRow(label, value, extraClass, raw) {
+  var v = raw ? value : esc(value || "未入力");
+  return '<div class="detail-row"><span class="detail-label">' + esc(label) + '</span><span class="detail-value ' + (extraClass||"") + '">' + v + '</span></div>';
+}
+
+$("detail-back-btn").addEventListener("click", function() { showScreen("home"); });
+$("detail-edit-btn").addEventListener("click", function() { openEdit(state.selectedCustomer); });
+
+// ============================================================
+// 編集フォーム
+// ============================================================
+function openEdit(customer) {
+  renderEditForm(customer);
+  showScreen("edit");
+}
+
+function renderEditForm(c) {
+  var fields = [
+    { key: "status", label: "ステータス", type: "status" },
+    { key: "ownerName", label: "施主名", type: "text" },
+    { key: "fieldName", label: "現場名", type: "text" },
+    { key: "graveSize", label: "墓のサイズ", type: "text" },
+    { key: "phone", label: "電話番号", type: "text", inputmode: "tel" },
+    { key: "postalCode", label: "郵便番号", type: "text", inputmode: "numeric" },
+    { key: "address", label: "住所", type: "text" },
+    { key: "contractAmount", label: "契約金額（円）", type: "number", inputmode: "numeric" },
+    { key: "cost", label: "原価（円）", type: "number", inputmode: "numeric" },
+    { key: "startDate", label: "工期 開始日", type: "date" },
+    { key: "endDate", label: "工期 終了日", type: "date" },
+    { key: "notes", label: "備考", type: "textarea" }
+  ];
+  $("edit-content").innerHTML = fields.map(function(f) {
+    var v = c[f.key] || "";
+    var input = "";
+    if (f.type === "status") {
+      input = '<div class="status-btns" style="flex-direction:row;gap:10px;">'
+        + ["進行中","完了","見積"].map(function(s) {
+          return '<button class="status-btn' + (c.status === s ? " selected" : "") + '" data-val="' + s + '" style="flex:1;padding:14px 4px;font-size:18px;">' + s + '</button>';
+        }).join("") + '</div>';
+    } else if (f.type === "textarea") {
+      input = '<textarea class="form-textarea" id="edit-' + f.key + '">' + esc(v) + '</textarea>';
+    } else {
+      input = '<input class="form-input" id="edit-' + f.key + '" type="' + f.type + '" inputmode="' + (f.inputmode||"text") + '" value="' + esc(v.toString()) + '">';
+    }
+    return '<div class="edit-field-wrap"><label class="form-label">' + esc(f.label) + '</label>' + input + '</div>';
+  }).join("");
+
+  document.querySelectorAll(".status-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".status-btn").forEach(function(b) { b.classList.remove("selected"); });
+      this.classList.add("selected");
+    });
+  });
+}
+
+$("edit-back-btn").addEventListener("click", function() { showScreen("detail"); });
+$("edit-cancel-btn").addEventListener("click", function() { showScreen("detail"); });
+
+$("edit-save-btn").addEventListener("click", function() {
+  var c = state.selectedCustomer;
+  var selectedStatus = document.querySelector(".status-btn.selected");
+  var data = {
+    action: "updateCustomer",
+    rowNum: c.rowNum,
+    status: selectedStatus ? selectedStatus.dataset.val : c.status,
+    ownerName: val("edit-ownerName"), fieldName: val("edit-fieldName"),
+    graveSize: val("edit-graveSize"), phone: val("edit-phone"),
+    postalCode: val("edit-postalCode"), address: val("edit-address"),
+    contractAmount: val("edit-contractAmount"), cost: val("edit-cost"),
+    startDate: val("edit-startDate"), endDate: val("edit-endDate"),
+    notes: val("edit-notes")
+  };
+  showLoading("保存中...");
+  apiPost(data)
+    .then(function(result) {
+      hideLoading();
+      if (result.success) {
+        showToast("✅ 更新しました！", "success");
+        loadCustomers();
+        var ca = parseFloat(data.contractAmount) || 0;
+        var co = parseFloat(data.cost) || 0;
+        var updated = Object.assign({}, c, data, {
+          contractAmount: ca, cost: co,
+          profit: ca - co,
+          profitRate: ca > 0 ? Math.round(((ca-co)/ca)*1000)/10 : 0
+        });
+        state.selectedCustomer = updated;
+        renderDetail(updated);
+        showScreen("detail");
+      } else {
+        showToast("エラー: " + result.error, "error");
+      }
+    })
+    .catch(function() { hideLoading(); showToast("保存に失敗しました", "error"); });
+});
+
+// ============================================================
+// 初期化
+// ============================================================
+window.addEventListener("load", function() {
+  if (!GAS_API_URL) {
+    $("setup-banner").style.display = "block";
+    hideLoading();
+    return;
+  }
+  loadCustomers();
+});
+</script>
+</body>
+</html>
