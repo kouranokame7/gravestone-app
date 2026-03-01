@@ -180,18 +180,38 @@
 var GAS_API_URL = "https://script.google.com/macros/s/AKfycbwBqzPsFCLD35TdRxgT5jnFJj4atjNGXGC5PUhrv_NtZpE6446jIYr72Ms5TijsBoaZvg/exec";
 
 // ============================================================
-// API通信
+// API通信（JSONP + no-cors）
 // ============================================================
+
+// GET：JSONPでCORSを回避
 function apiGet(action) {
-  return fetch(GAS_API_URL + "?action=" + action)
-    .then(function(r) { return r.json(); });
+  return new Promise(function(resolve, reject) {
+    var cbName = "cb_" + Date.now();
+    window[cbName] = function(data) {
+      delete window[cbName];
+      document.head.removeChild(script);
+      resolve(data);
+    };
+    var script = document.createElement("script");
+    script.src = GAS_API_URL + "?action=" + action + "&callback=" + cbName;
+    script.onerror = function() {
+      delete window[cbName];
+      reject(new Error("通信エラー"));
+    };
+    document.head.appendChild(script);
+  });
 }
 
+// POST：no-corsモード（レスポンスは読めないが書き込みは成功する）
 function apiPost(data) {
   return fetch(GAS_API_URL, {
     method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
     body: JSON.stringify(data)
-  }).then(function(r) { return r.json(); });
+  }).then(function() {
+    return { success: true };
+  });
 }
 
 // ============================================================
