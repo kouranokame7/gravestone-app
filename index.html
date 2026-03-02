@@ -139,6 +139,7 @@
     </div>
     <div class="form-page" id="form-step-area"></div>
     <div class="nav-footer">
+      <button class="btn-secondary" id="form-done-btn" style="background:#e0e0e0; color:#333; display:none;">完了</button>
       <button class="btn-secondary hidden" id="form-prev-btn">戻る</button>
       <button class="btn-primary" id="form-next-btn">次へ</button>
     </div>
@@ -368,6 +369,7 @@ function renderStep() {
   }
 
   $("form-prev-btn").classList.toggle("hidden", state.formStep === 0);
+  $("form-done-btn").style.display = (step.type === "status") ? "none" : "block";
   $("form-next-btn").textContent = isLast ? "✅ 登録する" : "次へ →";
   if (step.type !== "status") {
     var input = $("step-input");
@@ -377,6 +379,11 @@ function renderStep() {
 
 $("form-next-btn").addEventListener("click", function() { advanceStep(1); });
 $("form-prev-btn").addEventListener("click", function() { advanceStep(-1); });
+$("form-done-btn").addEventListener("click", function() {
+  var input = $("step-input");
+  if (input) input.blur();
+  advanceStep(1);
+});
 
 function advanceStep(dir) {
   var step = STEPS[state.formStep];
