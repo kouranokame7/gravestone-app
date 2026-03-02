@@ -270,6 +270,12 @@ function esc(str) {
 }
 function val(id) { var el = $(id); return el ? el.value.trim() : ""; }
 function formatMoney(n) { return Number(n).toLocaleString("ja-JP"); }
+function formatDateJP(val) {
+  if (!val) return "未入力";
+  var d = new Date(val);
+  if (isNaN(d.getTime())) return val; // 変換できない場合はそのまま返す
+  return d.getFullYear() + "年" + (d.getMonth() + 1) + "月" + d.getDate() + "日";
+}
 
 // ============================================================
 // ホーム画面
@@ -448,7 +454,7 @@ function renderDetail(c) {
     + '<div class="detail-row"><span class="detail-label">純利益</span><span class="detail-value big ' + profitClass + '">' + profitSign + formatMoney(c.profit) + ' 円</span></div>'
     + '<div class="detail-row"><span class="detail-label">利益率</span><span class="detail-value big ' + profitClass + '">' + c.profitRate + ' %</span></div></div>'
     + '<div class="detail-section"><div class="detail-section-title">工期</div>'
-    + dRow("開始日", c.startDate || "未入力") + dRow("終了日", c.endDate || "未入力") + '</div>'
+    + dRow("開始日", formatDateJP(c.startDate)) + dRow("終了日", formatDateJP(c.endDate)) + '</div>'
     + '<div class="detail-section"><div class="detail-section-title">備考</div>'
     + '<div style="font-size:18px;line-height:1.7;white-space:pre-wrap;padding:4px 0;">' + esc(c.notes || "（なし）") + '</div></div>';
 }
