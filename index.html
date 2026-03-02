@@ -55,8 +55,7 @@
     .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 15px; font-weight: bold; white-space: nowrap; }
     .badge-完了 { background: #d5f5e3; color: #1e8449; }
     .badge-施工中 { background: #d6eaf8; color: #1a5276; }
-    .badge-見積中 { background: #fef9e7; color: #7d6608; border: 1px solid #f9e79f; }
-    .badge-見込み客 { background: #f4f6f7; color: #707b7c; border: 1px solid #d5dbdb; }
+    .badge-契約前 { background: #fef9e7; color: #7d6608; border: 1px solid #f9e79f; }
 
     .empty-msg { text-align: center; padding: 60px 20px; color: #999; font-size: 18px; }
 
@@ -124,8 +123,7 @@
     </div>
     <div class="tabs">
       <button class="tab-btn active" data-tab="全件">全件</button>
-      <button class="tab-btn" data-tab="見込み客">見込み客</button>
-      <button class="tab-btn" data-tab="見積中">見積中</button>
+      <button class="tab-btn" data-tab="契約前">契約前</button>
       <button class="tab-btn" data-tab="施工中">施工中</button>
       <button class="tab-btn" data-tab="完了">完了</button>
     </div>
@@ -344,7 +342,7 @@ function renderStep() {
   var inputHtml = "";
   if (step.type === "status") {
     inputHtml = '<div class="status-btns">'
-      + ["見込み客","見積中","施工中","完了"].map(function(s) {
+      + ["契約前","施工中","完了"].map(function(s) {
         return '<button class="status-btn' + (state.formData.status === s ? " selected" : "") + '" data-val="' + s + '">' + s + '</button>';
       }).join("") + '</div>';
   } else if (step.type === "textarea") {
@@ -484,7 +482,7 @@ function renderEditForm(c) {
     var input = "";
     if (f.type === "status") {
       input = '<div class="status-btns" style="flex-direction:column;gap:10px;">'
-        + ["見込み客","見積中","施工中","完了"].map(function(s) {
+        + ["契約前","施工中","完了"].map(function(s) {
           return '<button class="status-btn' + (c.status === s ? " selected" : "") + '" data-val="' + s + '" style="flex:1;padding:14px 4px;font-size:18px;">' + s + '</button>';
         }).join("") + '</div>';
     } else if (f.type === "textarea") {
