@@ -346,9 +346,9 @@ function renderStep() {
         return '<button class="status-btn' + (state.formData.status === s ? " selected" : "") + '" data-val="' + s + '">' + s + '</button>';
       }).join("") + '</div>';
   } else if (step.type === "textarea") {
-    inputHtml = '<textarea class="form-textarea" id="step-input" placeholder="' + (step.placeholder||"") + '">' + esc(state.formData[step.key]||"") + '</textarea>';
+    inputHtml = '<textarea class="form-textarea" id="step-input" enterkeyhint="done" placeholder="' + (step.placeholder||"") + '">' + esc(state.formData[step.key]||"") + '</textarea>';
   } else {
-    inputHtml = '<input class="form-input" id="step-input" type="' + step.type + '" inputmode="' + (step.inputmode||"text") + '" placeholder="' + (step.placeholder||"") + '" value="' + esc(state.formData[step.key]||"") + '">';
+    inputHtml = '<input class="form-input" id="step-input" type="' + step.type + '" inputmode="' + (step.inputmode||"text") + '" enterkeyhint="done" placeholder="' + (step.placeholder||"") + '" value="' + esc(state.formData[step.key]||"") + '">';
   }
 
   $("form-step-area").innerHTML =
@@ -486,9 +486,9 @@ function renderEditForm(c) {
           return '<button class="status-btn' + (c.status === s ? " selected" : "") + '" data-val="' + s + '" style="flex:1;padding:14px 4px;font-size:18px;">' + s + '</button>';
         }).join("") + '</div>';
     } else if (f.type === "textarea") {
-      input = '<textarea class="form-textarea" id="edit-' + f.key + '">' + esc(v) + '</textarea>';
+      input = '<textarea class="form-textarea" id="edit-' + f.key + '" enterkeyhint="done">' + esc(v) + '</textarea>';
     } else {
-      input = '<input class="form-input" id="edit-' + f.key + '" type="' + f.type + '" inputmode="' + (f.inputmode||"text") + '" value="' + esc(v.toString()) + '">';
+      input = '<input class="form-input" id="edit-' + f.key + '" type="' + f.type + '" inputmode="' + (f.inputmode||"text") + '" enterkeyhint="done" value="' + esc(v.toString()) + '">';
     }
     return '<div class="edit-field-wrap"><label class="form-label">' + esc(f.label) + '</label>' + input + '</div>';
   }).join("");
@@ -540,6 +540,22 @@ $("edit-save-btn").addEventListener("click", function() {
       }
     })
     .catch(function() { hideLoading(); showToast("保存に失敗しました", "error"); });
+});
+
+// Enterキーで確定（キーボードを閉じる）処理
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    var target = e.target;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      target.blur(); // フォーカスを外してキーボードを閉じる
+      
+      // 新規登録画面（screen-formが非表示でない）なら次のステップへ
+      if (!$("screen-form").classList.contains("hidden")) {
+        e.preventDefault(); // 改行を防ぐ
+        advanceStep(1);
+      }
+    }
+  }
 });
 
 // ============================================================
