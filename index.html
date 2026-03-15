@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>hakaPIKA 顧客管理</title>
-  <!-- Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; background: #f5f5f5; font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; color: #333; }
@@ -21,6 +19,14 @@
     .login-title { font-size: 26px; font-weight: bold; color: #1a6bbf; text-align: center; }
     .login-subtitle { font-size: 16px; color: #888; text-align: center; line-height: 1.6; }
     .login-btn-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .google-login-btn {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; border: 2px solid #dadce0; border-radius: 8px;
+      padding: 14px 24px; font-size: 17px; font-weight: bold; color: #3c4043;
+      cursor: pointer; transition: box-shadow 0.2s;
+    }
+    .google-login-btn:active { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .google-logo { width: 22px; height: 22px; }
     #login-error {
       color: #c0392b; font-size: 15px; text-align: center; background: #fdecea;
       border-radius: 8px; padding: 12px 20px; display: none; max-width: 320px;
@@ -126,18 +132,15 @@
     <div class="login-title">hakaPIKA 顧客管理</div>
     <div class="login-subtitle">利用にはGoogleアカウントでの<br>ログインが必要です</div>
     <div class="login-btn-wrap">
-      <div id="g_id_onload"
-        data-client_id="259337887108-n7gq7b1d9h2np3mab9tolk2b2kqmeiod.apps.googleusercontent.com"
-        data-callback="onGoogleSignIn"
-        data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin"
-        data-type="standard"
-        data-size="large"
-        data-theme="outline"
-        data-text="signin_with"
-        data-locale="ja">
-      </div>
+      <button class="google-login-btn" onclick="startGoogleLogin()">
+        <svg class="google-logo" viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Googleでログイン
+      </button>
     </div>
     <div id="login-error"></div>
   </div>
@@ -215,23 +218,53 @@ var GAS_API_URL = "https://script.google.com/macros/s/AKfycbwG3QOvjhSQSh5IHG0MJp
 // ============================================================
 // Google Sign-In コールバック
 // ============================================================
+var CLIENT_ID = "259337887108-n7gq7b1d9h2np3mab9tolk2b2kqmeiod.apps.googleusercontent.com";
+var REDIRECT_URI = "https://kouranokame7.github.io/gravestone-app/";
 var ALLOWED_EMAILS = [
   "sk8ta0gaw.a@gmail.com",
   "hakapika001@gmail.com"
 ];
 
-function onGoogleSignIn(response) {
-  var payload = parseJwt(response.credential);
-  var email = payload.email;
+// Googleの認証ページへリダイレクト（全ブラウザ対応）
+function startGoogleLogin() {
+  var nonce = Math.random().toString(36).substring(2);
+  var params = [
+    "client_id=" + encodeURIComponent(CLIENT_ID),
+    "redirect_uri=" + encodeURIComponent(REDIRECT_URI),
+    "response_type=id_token",
+    "scope=openid%20email",
+    "nonce=" + nonce,
+    "prompt=select_account"
+  ].join("&");
+  window.location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + params;
+}
 
+// ログイン後のリダイレクト結果をURLフラグメントから取得
+function checkOAuthCallback() {
+  var hash = window.location.hash;
+  if (!hash) return false;
+  var params = {};
+  hash.substring(1).split("&").forEach(function(part) {
+    var idx = part.indexOf("=");
+    if (idx > -1) {
+      params[decodeURIComponent(part.substring(0, idx))] = decodeURIComponent(part.substring(idx + 1));
+    }
+  });
+  if (!params.id_token) return false;
+  // URLからトークンを消す
+  history.replaceState(null, null, window.location.pathname);
+  var payload = parseJwt(params.id_token);
+  handleLogin(payload.email);
+  return true;
+}
+
+function handleLogin(email) {
   if (ALLOWED_EMAILS.indexOf(email) === -1) {
     var errEl = document.getElementById("login-error");
     errEl.textContent = "このアカウント（" + email + "）はアクセスが許可されていません。";
     errEl.style.display = "block";
     return;
   }
-
-  // ログイン成功
   document.getElementById("screen-login").style.display = "none";
   document.getElementById("header-user-email").textContent = email;
   init();
@@ -635,8 +668,12 @@ document.addEventListener("keydown", function(e) {
 });
 
 // ============================================================
-// ログイン後の初期化
+// 初期化：OAuthコールバック確認 or ログイン画面表示
 // ============================================================
+window.addEventListener("load", function() {
+  checkOAuthCallback();
+});
+
 function init() {
   showScreen("home");
   loadCustomers();
