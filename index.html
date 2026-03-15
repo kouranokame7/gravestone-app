@@ -215,9 +215,21 @@ var GAS_API_URL = "https://script.google.com/macros/s/AKfycbwG3QOvjhSQSh5IHG0MJp
 // ============================================================
 // Google Sign-In コールバック
 // ============================================================
+var ALLOWED_EMAILS = [
+  "sk8ta0gaw.a@gmail.com",
+  "hakaPIKA001@gmail.com"
+];
+
 function onGoogleSignIn(response) {
   var payload = parseJwt(response.credential);
   var email = payload.email;
+
+  if (ALLOWED_EMAILS.indexOf(email) === -1) {
+    var errEl = document.getElementById("login-error");
+    errEl.textContent = "このアカウント（" + email + "）はアクセスが許可されていません。";
+    errEl.style.display = "block";
+    return;
+  }
 
   // ログイン成功
   document.getElementById("screen-login").style.display = "none";
